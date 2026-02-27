@@ -6,6 +6,59 @@ from flaskblog import app, db, bcrypt
 from flaskblog.forms import RegistrastionForm, LoginForm, UpdateAccountForm, PostForm
 from flaskblog.models import User, Post
 from flask_login import login_user, current_user, logout_user, login_required
+import google.generativeai as genai
+
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+
+def is_content_safe(text):
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        prompt = f"""
+        Jesteś moderatorem treści na publicznym blogu.
+        Sprawdź poniższy tekst. Jeśli zawiera przekleństwa, mowę nienawiści, 
+        treści brutalne, spam lub nieodpowiednie linki, odrzuć go.
+        Odpowiedz TYLKO jednym słowem: "TAK" (jeśli tekst jest bezpieczny) 
+        lub "NIE" (jeśli tekst łamie zasady).
+        
+        Tekst do sprawdzenia:
+        {text}
+        """
+        
+        response = model.generate_content(prompt)
+        result = response.text.strip().upper()
+
+        # tymczasowo
+        print(f"Odpowiedź modelu: '{result}'")
+        
+        return "TAK" in result
+        
+    except Exception as e:
+        print(f"Błąd moderacji AI: {e}")
+        return False
+
+def is_image_safe(image_file):
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        img = Image.open(image_file)
+        
+        prompt = """
+        Jesteś moderatorem treści. Przeanalizuj to zdjęcie.
+        Jeśli zawiera nagość, brutalność (gore), przemoc, treści drastyczne 
+        lub nieodpowiednie symbole, odrzuć je.
+        Odpowiedz TYLKO jednym słowem: "TAK" (jeśli jest bezpieczne) 
+        lub "NIE" (jeśli łamie zasady).
+        """
+        
+        response = model.generate_content([prompt, img])
+        result = response.text.strip().upper()
+        
+        return result == "TAK"
+        
+    except Exception as e:
+        print(f"Błąd moderacji obrazu AI: {e}")
+        return False
 
 
 @app.route("/")
@@ -70,6 +123,11 @@ def account():
     form = UpdateAccountForm()
     if form.validate_on_submit():
         if form.picture.data:
+            form.picture.data.seek(0)
+            
+            if not is_image_safe(form.picture.data):
+                flash('Photo rejected. The system detected inappropriate content.', 'danger')
+                return redirect(url_for('account'))
             picture_file = save_picture(form.picture.data)
             current_user.image_file = picture_file
         current_user.username = form.username.data
@@ -88,12 +146,15 @@ def account():
 def new_post():
     form = PostForm()
     if form.validate_on_submit():
+        if not is_content_safe(f"{form.title.data}\n{form.content.data}"):
+            flash('Post blocked due to inappropriate content', 'danger')
+            return render_template('create_post.html', title='New Post', form=form, legend="New Post")
         post = Post(title=form.title.data, content=form.content.data, author=current_user)
         db.session.add(post)
         db.session.commit()
         flash('Your post has been created!', 'success')
         return redirect(url_for('home'))
-    return render_template('create_post.html', title='New Post', form=form)
+    return render_template('create_post.html', title='New Post', form=form, legend="New Post")
 
 @app.route("/post/<int:post_id>")
 def post(post_id):
@@ -108,6 +169,9 @@ def update_post(post_id):
         abort(403)
     form = PostForm()
     if form.validate_on_submit():
+        if not is_content_safe(f"{form.title.data}\n{form.content.data}"):
+            flash('Post blocked due to inappropriate content', 'danger')
+            return render_template('create_post.html', title='Update Post', form=form, legend="Update Post")
         post.title = form.title.data
         post.content = form.content.data
         db.session.commit()

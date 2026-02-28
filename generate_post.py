@@ -10,7 +10,7 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 def generate_ai_post():
     """Funkcja łącząca się z modelem AI w celu wygenerowania tekstu."""
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-2.0-flash')
     
     prompt = """
     Napisz krótki post na bloga z dowolnym przepisem kulinarnym. Pisz krótko i zwięźle sam przepis, bez zwrotów do czytelników, profesjonalnie i sucho.

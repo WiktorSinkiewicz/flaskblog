@@ -1,5 +1,7 @@
 import os
 import secrets
+import json
+from datetime import date
 from PIL import Image
 from flask import render_template, url_for, flash, redirect, request, abort
 from flaskblog import app, db, bcrypt
@@ -8,11 +10,37 @@ from flaskblog.models import User, Post
 from flask_login import login_user, current_user, logout_user, login_required
 import google.generativeai as genai
 
+API_LIMIT_PER_DAY = 15
+
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
+def can_use_api():
+    usage_file = os.path.join(app.root_path, 'api_usage.json')
+    today = str(date.today())
+    
+    if os.path.exists(usage_file):
+        with open(usage_file, 'r') as f:
+            data = json.load(f)
+    else:
+        data = {'date': today, 'count': 0}
+        
+    if data.get('date') != today:
+        data = {'date': today, 'count': 0}
+        
+    if data['count'] >= API_LIMIT_PER_DAY:
+        return False
+        
+    data['count'] += 1
+    with open(usage_file, 'w') as f:
+        json.dump(data, f)
+        
+    return True
+
 def is_content_safe(text):
+    if not can_use_api():
+        return True
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash-lite')
         
         prompt = f"""
         Jesteś moderatorem treści na publicznym blogu.
@@ -35,11 +63,13 @@ def is_content_safe(text):
         
     except Exception as e:
         print(f"Błąd moderacji AI: {e}")
-        return False
+        return True
 
 def is_image_safe(image_file):
+    if not can_use_api():
+        return True
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash-lite')
         
         img = Image.open(image_file)
         
@@ -58,7 +88,7 @@ def is_image_safe(image_file):
         
     except Exception as e:
         print(f"Błąd moderacji obrazu AI: {e}")
-        return False
+        return True
 
 
 @app.route("/")
@@ -92,6 +122,9 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user and bcrypt.check_password_hash(user.password, form.password.data):
+            if user.is_banned:
+                flash('Twoje konto zostało permanentnie zablokowane.', 'danger')
+                return redirect(url_for('login'))
             login_user(user, remember=form.remember.data)
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('home'))

@@ -16,3 +16,10 @@ login_manager.login_view = 'login'
 login_manager.login_message_category = 'info'
 
 from flaskblog import routes
+from flask_admin import Admin
+from flaskblog.admin_views import SecureModelView
+from flaskblog.models import User, Post
+
+admin = Admin(app, name='Admin Panel')
+admin.add_view(SecureModelView(User, db.session))
+admin.add_view(SecureModelView(Post, db.session))

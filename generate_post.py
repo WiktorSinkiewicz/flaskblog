@@ -1,17 +1,21 @@
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai.types import HttpOptions
 from dotenv import load_dotenv
 from flaskblog import app, db
 from flaskblog.models import User, Post
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+adres_proxy = 'http://uozcazcy:89v4wnjqsqs8@23.95.150.145:6114'
+
+http_options = HttpOptions(client_args={"proxy": adres_proxy})
+client = genai.Client(
+    api_key=os.environ.get("GEMINI_API_KEY"), 
+    http_options=http_options
+)
 
 def generate_ai_post():
-    """Funkcja łącząca się z modelem AI w celu wygenerowania tekstu."""
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    
     prompt = """
     Napisz krótki post na bloga z dowolnym przepisem kulinarnym. Pisz krótko i zwięźle sam przepis, bez zwrotów do czytelników, profesjonalnie i sucho.
     Zwróć wynik dokładnie w takim formacie:
@@ -19,11 +23,14 @@ def generate_ai_post():
     Od drugiej linijki treść posta.
     """
     
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+	model='gemini-2.5-flash',
+	contents=prompt
+    )
     
     lines = response.text.split('\n', 1)
-    title = lines[0].strip().replace('**', '') # Usuwamy ewentualne pogrubienia z tytułu
-    content = lines[1].strip() if len(lines) > 1 else "Brak treści."
+    title = lines[0].strip().replace('*', '')
+    content = lines[1].strip().replace('*', '')  if len(lines) > 1 else "Brak treści."
     
     return title, content
 

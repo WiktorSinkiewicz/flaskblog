@@ -54,7 +54,9 @@ def generate_ai_post():
     
     Wykorzystaj powyższe wytyczne, aby wymyślić unikalny, rzadziej spotykany przepis. Unikaj najbardziej banalnych, oczywistych klasyków.
     
-    Pisz krótko i zwięźle sam przepis, bez zwrotów do czytelników, profesjonalnie i sucho.
+    Pisz krótko i zwięźle sam przepis, bez zwrotów do czytelników, profesjonalnie i sucho. 
+    WAŻNE: Nie używaj w ogóle formatowania Markdown. Nie używaj gwiazdek (* ani **) do pogrubień czy list. Do wylistowania składników używaj zwykłych myślników (-).
+    
     Zwróć wynik dokładnie w takim formacie:
     W pierwszej linijce sam tytuł.
     Od drugiej linijki treść posta.
@@ -69,7 +71,7 @@ def generate_ai_post():
     )
     
     lines = response.text.split('\n', 1)
-    title = lines[0].strip().replace('**', '')
+    title = lines[0].strip().replace('*', '')
     content = lines[1].strip() if len(lines) > 1 else "Brak treści."
     
     return title, content

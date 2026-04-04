@@ -1,19 +1,17 @@
 import os
 import random
 import datetime
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 from flaskblog import app, db
 from flaskblog.models import User, Post
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 def generate_ai_post():
-    """Funkcja łącząca się z modelem AI w celu wygenerowania tekstu."""
-    model = genai.GenerativeModel('gemini-2.0-flash-lite')
-    
     now = datetime.datetime.now()
     months_context = {
         1: "styczeń (zima, dania noworoczne, rozgrzewające)", 
@@ -62,9 +60,10 @@ def generate_ai_post():
     Od drugiej linijki treść posta.
     """
     
-    response = model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt,
+        config=types.GenerateContentConfig(
             temperature=0.85,
         )
     )

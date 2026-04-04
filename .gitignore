@@ -7,3 +7,4 @@ instance/
 flaskblog.sock
 gunicorn.ctl
 .env
+site.db

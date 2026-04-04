@@ -8,11 +8,18 @@ from flaskblog import app, db, bcrypt
 from flaskblog.forms import RegistrastionForm, LoginForm, UpdateAccountForm, PostForm
 from flaskblog.models import User, Post
 from flask_login import login_user, current_user, logout_user, login_required
-import google.generativeai as genai
+from google import genai
+from google.genai.types import HttpOptions
 
 API_LIMIT_PER_DAY = 15
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+adres_proxy = 'http://uozcazcy:89v4wnjqsqs8@23.95.150.145:6114'
+
+http_options = HttpOptions(client_args={"proxy": adres_proxy})
+client = genai.Client(
+    api_key=os.environ.get("GEMINI_API_KEY"), 
+    http_options=http_options
+)
 
 def can_use_api():
     usage_file = os.path.join(app.root_path, 'api_usage.json')
@@ -40,8 +47,6 @@ def is_content_safe(text):
     if not can_use_api():
         return True
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-lite')
-        
         prompt = f"""
         Jesteś moderatorem treści na publicznym blogu.
         Sprawdź poniższy tekst. Jeśli zawiera przekleństwa, mowę nienawiści, 
@@ -53,7 +58,10 @@ def is_content_safe(text):
         {text}
         """
         
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
         result = response.text.strip().upper()
 
         # tymczasowo
@@ -69,8 +77,6 @@ def is_image_safe(image_file):
     if not can_use_api():
         return True
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-lite')
-        
         img = Image.open(image_file)
         
         prompt = """
@@ -81,7 +87,10 @@ def is_image_safe(image_file):
         lub "NIE" (jeśli łamie zasady).
         """
         
-        response = model.generate_content([prompt, img])
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[prompt, img]
+        )
         result = response.text.strip().upper()
         
         return result == "TAK"

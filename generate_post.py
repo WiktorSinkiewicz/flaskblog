@@ -46,7 +46,6 @@ def generate_ai_post():
     
     chosen_region = random.choice(regions)
     chosen_meal_type = random.choice(meal_types)
-    chosen_method = random.choice(cooking_methods)
     
     prompt = f"""
     Napisz krótki post na bloga z przepisem kulinarnym. 
